@@ -42,13 +42,52 @@ router.post("/posts", authenticate, upload.single("file"), postsRoute);
 //get posts
 router.get("/getPosts", authenticate, async (req, res) => {
   try {
-    const posts = await Post.find().populate("user", "username profilePhoto");
+    const { filter } = req.query; // 'currentUser' or 'others'
+    let query = {};
+
+    if (filter === "currentUser") {
+      query = { user: req.user.id };
+    } else if (filter === "others") {
+      query = { user: { $ne: req.user.id } };
+    }
+
+    const posts = await Post.find(query)
+      .populate("user", "username profilePhoto")
+      .sort({ createdAt: -1 });
+
     res.json(posts);
   } catch (err) {
     console.error("Error fetching posts:", err.message);
     res.status(500).json({ message: "Error fetching posts" });
   }
 });
+
+
+router.put("/posts/:postId/like", authenticate, async (req, res) => {
+  try {
+    const post = await Post.findById(req.params.postId);
+
+    if (!post) {
+      return res.status(404).json({ message: "Post not found" });
+    }
+
+    // Check if the user has already liked the post
+    if (post.likedBy && post.likedBy.includes(req.user.id)) {
+      return res.status(400).json({ message: "You have already liked this post" });
+    }
+
+    // Increment like count and add user to likedBy array
+    post.likes += 1;
+    post.likedBy.push(req.user.id);
+    await post.save();
+
+    res.json({ message: "Post liked successfully", likes: post.likes });
+  } catch (err) {
+    console.error("Error liking post:", err.message);
+    res.status(500).json({ message: "Error liking post", error: err.message });
+  }
+});
+
 
 //get followers
 router.get("/followers", authenticate, async (req, res) => {
