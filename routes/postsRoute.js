@@ -33,4 +33,3 @@ const postsRoute = async (req, res) => {
 };
 
 module.exports = postsRoute;
-

@@ -49,6 +49,8 @@ router.get("/getPosts", authenticate, async (req, res) => {
       query = { user: req.user.id };
     } else if (filter === "others") {
       query = { user: { $ne: req.user.id } };
+    }else if (filter === "userId") {
+      query = { user: req.query.userId }; // Add this case
     }
 
     const posts = await Post.find(query)
@@ -85,6 +87,31 @@ router.put("/posts/:postId/like", authenticate, async (req, res) => {
   } catch (err) {
     console.error("Error liking post:", err.message);
     res.status(500).json({ message: "Error liking post", error: err.message });
+  }
+});
+
+// Add this route to the posts route file
+
+router.delete("/posts/:postId", authenticate, async (req, res) => {
+  try {
+    const post = await Post.findById(req.params.postId);
+
+    if (!post) {
+      return res.status(404).json({ message: "Post not found" });
+    }
+
+    // Check if the logged-in user is the owner of the post
+    if (post.user.toString() !== req.user.id) {
+      return res.status(403).json({ message: "You can only delete your own posts" });
+    }
+
+    // Delete the post
+    await post.deleteOne();
+
+    res.json({ message: "Post deleted successfully" });
+  } catch (err) {
+    console.error("Error deleting post:", err.message);
+    res.status(500).json({ message: "Error deleting post", error: err.message });
   }
 });
 
