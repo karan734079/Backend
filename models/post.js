@@ -6,8 +6,9 @@ const PostSchema = new mongoose.Schema(
     username: { type: String, required: true },
     profilePhoto: { type: String },
     mediaUrl: { type: String, required: true },
+    mediaType: { type: String, default: "image" }, // Either "image" or "video"
     likes: { type: Number, default: 0 },
-    likedBy: [{ type: mongoose.Schema.Types.ObjectId, ref: "User" }], // Track users who liked the post
+    likedBy: [{ type: mongoose.Schema.Types.ObjectId, ref: "User" }],
   },
   { timestamps: true }
 );

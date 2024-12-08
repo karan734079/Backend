@@ -1,10 +1,11 @@
 const uploadImageToCloudinary = require("../utils/cloudnary");
 const Post = require("../models/post");
-const User = require("../models/user")
+const User = require("../models/user");
 
 const postsRoute = async (req, res) => {
   try {
-    const result = await uploadImageToCloudinary(req.file.path);
+    // Upload file (image or video) to Cloudinary
+    const result = await uploadImageToCloudinary(req.file.path, req.file.mimetype.startsWith("video") ? "video" : "image");
 
     const user = await User.findById(req.user.id);
     if (!user) {
@@ -16,14 +17,12 @@ const postsRoute = async (req, res) => {
       username: user.username,
       profilePhoto: user.profilePhoto,
       mediaUrl: result.secure_url,
+      mediaType: req.file.mimetype.startsWith("video") ? "video" : "image", // Save media type
     });
 
     await newPost.save();
 
-    const populatedPost = await Post.findById(newPost._id).populate(
-      "user",
-      "username profilePhoto"
-    );
+    const populatedPost = await Post.findById(newPost._id).populate("user", "username profilePhoto");
 
     res.json({ message: "Post created successfully", post: populatedPost });
   } catch (err) {

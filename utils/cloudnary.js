@@ -9,10 +9,16 @@ cloudinary.config({
     api_secret: "_KR5paMPQ8cYAcDNtFwBK1zk6x4",
 });
 
-const uploadImageToCloudinary = async (filePath) => {
-    const result = await cloudinary.uploader.upload(path.normalize(filePath), { folder: "profile_photos" });
-    fs.unlinkSync(filePath); // Remove local file after upload
+const uploadImageToCloudinary = async (filePath, resourceType = "image") => {
+    const result = await cloudinary.uploader.upload(
+      path.normalize(filePath),
+      { folder: "profile_photos", resource_type: resourceType } // Handle both image and video uploads
+    );
+    fs.unlinkSync(filePath);
     return result;
-};
+  };
+  
+  module.exports = uploadImageToCloudinary;
+  
 
-module.exports = uploadImageToCloudinary;
+module.exports = uploadImageToCloudinary; 

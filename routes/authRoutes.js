@@ -20,7 +20,7 @@ router.post("/sign-up", signUpAuth);
 router.post("/login", loginAuth);
 
 // update Profile
-router.put(
+router.put( 
   "/profile",
   authenticate,
   upload.single("profilePhoto"),
@@ -115,6 +115,18 @@ router.delete("/posts/:postId", authenticate, async (req, res) => {
   }
 });
 
+router.get("/reels", authenticate, async (req, res) => {
+  try {
+    const videoPosts = await Post.find({ fileType: "video" })
+      .populate("user", "username profilePhoto")
+      .sort({ createdAt: -1 });
+
+    res.json(videoPosts);
+  } catch (err) {
+    console.error("Error fetching reels:", err.message);
+    res.status(500).json({ message: "Error fetching reels", error: err.message });
+  }
+});
 
 //get followers
 router.get("/followers", authenticate, async (req, res) => {
