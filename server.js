@@ -18,7 +18,7 @@ app.use(bodyParser.json());
 app.use("/uploads", express.static(path.join(__dirname, "uploads")));
 
 //mongoDB connection
-const MONGO_URI = "mongodb+srv://karanjangral60:karan%40123@cluster0.kb0gb.mongodb.net/auth?retryWrites=true&w=majority";
+const MONGO_URI = process.env.MONGODBATLAS_URI;
 
 mongoose
   .connect(MONGO_URI, {
