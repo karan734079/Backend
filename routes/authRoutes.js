@@ -73,22 +73,26 @@ router.put("/posts/:postId/like", authenticate, async (req, res) => {
       return res.status(404).json({ message: "Post not found" });
     }
 
-    // Check if the user has already liked the post
-    if (post.likedBy && post.likedBy.includes(req.user.id)) {
-      return res.status(400).json({ message: "You have already liked this post" });
+    const userId = req.user.id;
+
+    // If the user has already liked the post, we remove the like
+    if (post.likedBy.includes(userId)) {
+      post.likes = Math.max(post.likes - 1, 0);  // Ensure likes can't be negative
+      post.likedBy = post.likedBy.filter(id => id.toString() !== userId);
+    } else {
+      post.likes = Math.max(0, post.likes + 1);
+      post.likedBy.push(userId);
     }
 
-    // Increment like count and add user to likedBy array
-    post.likes += 1;
-    post.likedBy.push(req.user.id);
     await post.save();
 
-    res.json({ message: "Post liked successfully", likes: post.likes });
+    res.json({ message: "Post liked/unliked successfully", likes: post.likes });
   } catch (err) {
-    console.error("Error liking post:", err.message);
+    console.error("Error liking/unliking post:", err.message);
     res.status(500).json({ message: "Error liking post", error: err.message });
   }
 });
+
 
 // Add this route to the posts route file
 
