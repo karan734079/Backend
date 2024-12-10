@@ -4,7 +4,6 @@ const getAllUserAuth = async (req, res) => {
   try {
     const currentUserId = req.user.id;
 
-    // Fetch all users except the currently logged-in user
     const users = await User.find({ _id: { $ne: currentUserId } }, "-password");
 
     res.json(users);

@@ -4,7 +4,6 @@ const User = require("../models/user");
 
 const postsRoute = async (req, res) => {
   try {
-    // Upload file (image or video) to Cloudinary
     const result = await uploadImageToCloudinary(req.file.path, req.file.mimetype.startsWith("video") ? "video" : "image");
 
     const user = await User.findById(req.user.id);

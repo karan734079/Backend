@@ -42,7 +42,7 @@ router.post("/posts", authenticate, upload.single("file"), postsRoute);
 //get posts
 router.get("/getPosts", authenticate, async (req, res) => {
   try {
-    const { filter } = req.query; // 'currentUser' or 'others'
+    const { filter } = req.query;
     let query = {};
 
     if (filter === "currentUser") {
@@ -50,7 +50,7 @@ router.get("/getPosts", authenticate, async (req, res) => {
     } else if (filter === "others") {
       query = { user: { $ne: req.user.id } };
     } else if (filter === "userId") {
-      query = { user: req.query.userId }; // Add this case
+      query = { user: req.query.userId };
     }
 
     const posts = await Post.find(query)
@@ -74,9 +74,8 @@ router.put("/posts/:postId/like", authenticate, async (req, res) => {
 
     const userId = req.user.id;
 
-    // If the user has already liked the post, we remove the like
     if (post.likedBy.includes(userId)) {
-      post.likes = Math.max(post.likes - 1, 0); // Ensure likes can't be negative
+      post.likes = Math.max(post.likes - 1, 0);
       post.likedBy = post.likedBy.filter((id) => id.toString() !== userId);
     } else {
       post.likes = Math.max(0, post.likes + 1);
@@ -92,8 +91,7 @@ router.put("/posts/:postId/like", authenticate, async (req, res) => {
   }
 });
 
-// Add this route to the posts route file
-
+//delete post
 router.delete("/posts/:postId", authenticate, async (req, res) => {
   try {
     const post = await Post.findById(req.params.postId);
@@ -102,14 +100,12 @@ router.delete("/posts/:postId", authenticate, async (req, res) => {
       return res.status(404).json({ message: "Post not found" });
     }
 
-    // Check if the logged-in user is the owner of the post
     if (post.user.toString() !== req.user.id) {
       return res
         .status(403)
         .json({ message: "You can only delete your own posts" });
     }
 
-    // Delete the post
     await post.deleteOne();
 
     res.json({ message: "Post deleted successfully" });

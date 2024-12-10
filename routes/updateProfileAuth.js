@@ -3,8 +3,8 @@ const uploadImageToCloudinary = require("../utils/cloudnary")
 
 const updateProfileAuth = async (req, res) => {
   try {
-    console.log('Request Body:', req.body);  // Logs the form data sent from frontend
-    console.log('Uploaded File:', req.file);  // Logs the uploaded file info
+    console.log('Request Body:', req.body);
+    console.log('Uploaded File:', req.file);
 
     const { name, address } = req.body;
 
@@ -24,7 +24,6 @@ const updateProfileAuth = async (req, res) => {
       }
     }
 
-    // Make sure the file is being processed here
     console.log('Profile photo URL:', profilePhotoUrl);
 
     const updatedUser = await User.findByIdAndUpdate(
