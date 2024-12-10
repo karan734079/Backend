@@ -4,7 +4,8 @@ const User = require("../models/user");
 // Get Profile Route
 const getProfileAuth = async (req, res) => {
     try {
-        const user = await User.findById(req.user.id, "-password");
+        const userId = req.query.userId || req.user.id; // Get userId from query or use the logged-in user's id
+        const user = await User.findById(userId, "-password"); // Find the user by the userId
         if (!user) return res.status(404).json({ message: "User not found" });
 
         res.json(user);
@@ -15,3 +16,4 @@ const getProfileAuth = async (req, res) => {
 };
 
 module.exports = getProfileAuth;
+

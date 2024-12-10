@@ -9,7 +9,7 @@ const getAllUserAuth = require("../routes/getAllUsersAuth");
 const toggleFollowAuth = require("../routes/toggleFollowAuth");
 const postsRoute = require("./postsRoute");
 const Post = require("../models/post");
-const User = require("../models/user")
+const User = require("../models/user");
 
 const router = express.Router();
 
@@ -20,7 +20,7 @@ router.post("/sign-up", signUpAuth);
 router.post("/login", loginAuth);
 
 // update Profile
-router.put( 
+router.put(
   "/profile",
   authenticate,
   upload.single("profilePhoto"),
@@ -49,7 +49,7 @@ router.get("/getPosts", authenticate, async (req, res) => {
       query = { user: req.user.id };
     } else if (filter === "others") {
       query = { user: { $ne: req.user.id } };
-    }else if (filter === "userId") {
+    } else if (filter === "userId") {
       query = { user: req.query.userId }; // Add this case
     }
 
@@ -64,7 +64,6 @@ router.get("/getPosts", authenticate, async (req, res) => {
   }
 });
 
-
 router.put("/posts/:postId/like", authenticate, async (req, res) => {
   try {
     const post = await Post.findById(req.params.postId);
@@ -77,8 +76,8 @@ router.put("/posts/:postId/like", authenticate, async (req, res) => {
 
     // If the user has already liked the post, we remove the like
     if (post.likedBy.includes(userId)) {
-      post.likes = Math.max(post.likes - 1, 0);  // Ensure likes can't be negative
-      post.likedBy = post.likedBy.filter(id => id.toString() !== userId);
+      post.likes = Math.max(post.likes - 1, 0); // Ensure likes can't be negative
+      post.likedBy = post.likedBy.filter((id) => id.toString() !== userId);
     } else {
       post.likes = Math.max(0, post.likes + 1);
       post.likedBy.push(userId);
@@ -93,7 +92,6 @@ router.put("/posts/:postId/like", authenticate, async (req, res) => {
   }
 });
 
-
 // Add this route to the posts route file
 
 router.delete("/posts/:postId", authenticate, async (req, res) => {
@@ -106,7 +104,9 @@ router.delete("/posts/:postId", authenticate, async (req, res) => {
 
     // Check if the logged-in user is the owner of the post
     if (post.user.toString() !== req.user.id) {
-      return res.status(403).json({ message: "You can only delete your own posts" });
+      return res
+        .status(403)
+        .json({ message: "You can only delete your own posts" });
     }
 
     // Delete the post
@@ -115,7 +115,9 @@ router.delete("/posts/:postId", authenticate, async (req, res) => {
     res.json({ message: "Post deleted successfully" });
   } catch (err) {
     console.error("Error deleting post:", err.message);
-    res.status(500).json({ message: "Error deleting post", error: err.message });
+    res
+      .status(500)
+      .json({ message: "Error deleting post", error: err.message });
   }
 });
 
@@ -128,7 +130,34 @@ router.get("/reels", authenticate, async (req, res) => {
     res.json(videoPosts);
   } catch (err) {
     console.error("Error fetching reels:", err.message);
-    res.status(500).json({ message: "Error fetching reels", error: err.message });
+    res
+      .status(500)
+      .json({ message: "Error fetching reels", error: err.message });
+  }
+});
+
+router.get("/users/search", authenticate, async (req, res) => {
+  try {
+    const { query } = req.query;
+    if (!query) {
+      return res.status(400).json({ message: "Search query is required" });
+    }
+
+    // Perform partial match on usernames starting with the query
+    const users = await User.find({
+      username: { $regex: `^${query}`, $options: "i" }, // Case-insensitive search
+    }).select("-password"); // Exclude sensitive fields like password
+
+    if (!users || users.length === 0) {
+      return res.status(404).json({ message: "No users found" });
+    }
+
+    res.json(users);
+  } catch (err) {
+    console.error("Error searching users:", err.message);
+    res
+      .status(500)
+      .json({ message: "Error searching users", error: err.message });
   }
 });
 

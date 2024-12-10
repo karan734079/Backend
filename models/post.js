@@ -9,6 +9,8 @@ const PostSchema = new mongoose.Schema(
     mediaType: { type: String, default: "image" }, // Either "image" or "video"
     likes: { type: Number, default: 0 },
     likedBy: [{ type: mongoose.Schema.Types.ObjectId, ref: "User" }],
+    followers: [{ type: mongoose.Schema.Types.ObjectId, ref: "User" }],
+    following: [{ type: mongoose.Schema.Types.ObjectId, ref: "User" }],
   },
   { timestamps: true }
 );
