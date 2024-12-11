@@ -1,4 +1,5 @@
 const User = require("../models/user");
+const Notification = require("../models/notification")
 
 const toggleFollowAuth = async (req, res) => {
   try {
@@ -24,6 +25,16 @@ const toggleFollowAuth = async (req, res) => {
     } else {
       currentUser.following.push(userId);
       userToFollow.followers.push(currentUserId);
+
+      // Create a follow notification for the user being followed
+      const newNotification = new Notification({
+        type: "follow",
+        user: userId, // The user who is being followed
+        fromUser: currentUserId, // The current user who is following
+        isRead: false,
+      });
+
+      await newNotification.save();
     }
 
     await currentUser.save();

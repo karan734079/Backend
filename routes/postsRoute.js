@@ -1,6 +1,7 @@
 const uploadImageToCloudinary = require("../utils/cloudnary");
 const Post = require("../models/post");
 const User = require("../models/user");
+const Notification = require("../models/notification")
 
 const postsRoute = async (req, res) => {
   try {
@@ -22,6 +23,16 @@ const postsRoute = async (req, res) => {
     await newPost.save();
 
     const populatedPost = await Post.findById(newPost._id).populate("user", "username profilePhoto");
+
+    // Notify followers
+    const notifications = user.followers.map((followerId) => ({
+      type: "post",
+      user: followerId,
+      fromUser: req.user.id,
+      post: newPost._id,
+    }));
+
+    await Notification.insertMany(notifications);
 
     res.json({ message: "Post created successfully", post: populatedPost });
   } catch (err) {

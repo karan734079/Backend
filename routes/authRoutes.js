@@ -10,6 +10,7 @@ const toggleFollowAuth = require("../routes/toggleFollowAuth");
 const postsRoute = require("./postsRoute");
 const Post = require("../models/post");
 const User = require("../models/user");
+const Notification = require("../models/notification")
 
 const router = express.Router();
 
@@ -167,6 +168,53 @@ router.get("/followers", authenticate, async (req, res) => {
 router.get("/following", authenticate, async (req, res) => {
   const user = await User.findById(req.user.id).populate("following");
   res.json(user.following);
+});
+
+router.get("/notifications", authenticate, async (req, res) => {
+  try {
+    const notifications = await Notification.find({ user: req.user.id })
+      .populate("fromUser", "username profilePhoto")
+      .populate("post")
+      .sort({ createdAt: -1 });
+
+    res.json(notifications);
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ message: "Error fetching notifications", error: err.message });
+  }
+});
+
+router.put("/notifications/:id/read", authenticate, async (req, res) => {
+  try {
+    const notification = await Notification.findById(req.params.id);
+
+    if (!notification) {
+      return res.status(404).json({ message: "Notification not found" });
+    }
+
+    notification.isRead = true;
+    await notification.save();
+
+    res.json({ message: "Notification marked as read" });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ message: "Error updating notification", error: err.message });
+  }
+});
+
+router.delete("/notifications/:id", authenticate, async (req, res) => {
+  try {
+    const notification = await Notification.findByIdAndDelete(req.params.id);
+
+    if (!notification) {
+      return res.status(404).json({ message: "Notification not found" });
+    }
+
+    res.json({ message: "Notification deleted successfully" });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ message: "Error deleting notification", error: err.message });
+  }
 });
 
 module.exports = router;
