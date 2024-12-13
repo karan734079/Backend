@@ -18,6 +18,7 @@ const postsRoute = async (req, res) => {
       profilePhoto: user.profilePhoto,
       mediaUrl: result.secure_url,
       mediaType: req.file.mimetype.startsWith("video") ? "video" : "image", // Save media type
+      caption: req.body.caption || "",  // Save the caption
     });
 
     await newPost.save();
