@@ -18,6 +18,8 @@ const getPosts = require("./getPosts");
 const getPostLikes = require("./getPostLikes");
 const postDelete = require("./postDelete");
 const getUsersFromSearch = require("./getUsersFromSearch");
+const User = require("../models/user");
+const {emitUserStatus} = require("./socketEvents")
 
 const router = express.Router();
 
@@ -26,6 +28,23 @@ router.post("/sign-up", signUpAuth);
 
 // Login Route
 router.post("/login", loginAuth);
+
+// Assuming you have an Express app
+router.post('/logout', authenticate, async (req, res) => {
+  const userId = req.user._id; // Now req.user will have the authenticated user's data.
+  try {
+    // Update user status to offline in the database
+    await User.findByIdAndUpdate(userId, { online: false });
+
+    // Emit to all clients that this user is offline
+    emitUserStatus(userId, "offline");
+
+    res.status(200).send('User status updated to offline');
+  } catch (err) {
+    console.error('Error updating status:', err);
+    res.status(500).send('Server error');
+  }
+});
 
 // update Profile
 router.put(
@@ -38,34 +57,34 @@ router.put(
 // get profile
 router.get("/profile", authenticate, getProfileAuth);
 
-//get all users
+// get all users
 router.get("/users", authenticate, getAllUserAuth);
 
-//get followAuth
+// get followAuth
 router.post("/users/:userId/toggle-follow", authenticate, toggleFollowAuth);
 
-//get posts
+// get posts
 router.post("/posts", authenticate, upload.single("file"), postsRoute);
 
-//get posts
+// get posts
 router.get("/getPosts", authenticate, getPosts);
 
-//get Post Likes
+// get Post Likes
 router.put("/posts/:postId/like", authenticate, getPostLikes);
 
-//delete post
+// delete post
 router.delete("/posts/:postId", authenticate, postDelete);
 
-//get reels
+// get reels
 router.get("/reels", authenticate, getReels);
 
-//get users from search
+// get users from search
 router.get("/users/search", authenticate,getUsersFromSearch);
 
-//get followers
+// get followers
 router.get("/followers", authenticate, getFollowers);
 
-//get following
+// get following
 router.get("/following", authenticate, getFollowing);
 
 router.get("/notifications", authenticate, notificationGet);

@@ -1,6 +1,7 @@
 const bcrypt = require("bcryptjs");
 const User = require("../models/user");
 const jwt = require("jsonwebtoken");
+const { emitUserStatus } = require("./socketEvents");
 
 const loginAuth = async (req, res) => {
   const { username, password } = req.body;
@@ -17,7 +18,13 @@ const loginAuth = async (req, res) => {
     const token = jwt.sign({ id: user._id }, process.env.AUTH_SECRET_KEY, {
       expiresIn: "1h",
     });
+
     const isProfileComplete = user.name && user.address && user.profilePhoto;
+
+    // Emit the user status to notify others that the user is online
+    user.online = true;  // Set the user to be online
+    await user.save();  // Save the user status to the DB
+    emitUserStatus(user._id, "online"); // Notify all connected clients about the user's status
 
     res.json({ message: "Login successful", token, isProfileComplete });
   } catch (err) {

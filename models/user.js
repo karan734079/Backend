@@ -10,8 +10,10 @@ const UserSchema = new mongoose.Schema(
     profilePhoto: { type: String },
     followers: [{ type: mongoose.Schema.Types.ObjectId, ref: "User" }],
     following: [{ type: mongoose.Schema.Types.ObjectId, ref: "User" }],
+    online: { type: Boolean, default: false }, // Online status
   },
   { timestamps: true }
 );
 
 module.exports = mongoose.model("User", UserSchema);
+
