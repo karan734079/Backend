@@ -7,7 +7,11 @@ const bodyParser = require("body-parser");
 const cors = require("cors");
 const authRoutes = require("./routes/authRoutes");
 const path = require("path");
-const { setSocketIoInstance , emitUserStatus} = require("./routes/socketEvents");
+const User = require("./models/user");
+const {
+  setSocketIoInstance,
+  emitUserStatus,
+} = require("./routes/socketEvents");
 
 dotenv.config();
 
@@ -24,7 +28,10 @@ app.use(bodyParser.json());
 app.use("/uploads", express.static(path.join(__dirname, "uploads")));
 
 mongoose
-  .connect(process.env.MONGODBATLAS_URI, { useNewUrlParser: true, useUnifiedTopology: true })
+  .connect(process.env.MONGODBATLAS_URI, {
+    useNewUrlParser: true,
+    useUnifiedTopology: true,
+  })
   .then(() => console.log("MongoDB connected"))
   .catch((err) => console.log("Error connecting to MongoDB", err));
 
@@ -33,33 +40,44 @@ app.use("/api/auth", authRoutes);
 const onlineUsers = new Map();
 
 io.on("connection", (socket) => {
-  console.log(`User connected: ${socket.id}`);
+  // console.log(`User connected: ${socket.id}`);
 
-  socket.on("user-login", (userId) => {
+  socket.on("user-login", async (userId) => {
     onlineUsers.set(userId, socket.id);
     emitUserStatus(userId, "online");
+
+    // Set the user status in the database
+    await User.findByIdAndUpdate(userId, { online: true });
   });
 
-  socket.on("user-logout", (userId) => {
+  socket.on("user-logout", async (userId) => {
     onlineUsers.delete(userId);
     emitUserStatus(userId, "offline");
+
+    // Set the user status in the database
+    await User.findByIdAndUpdate(userId, { online: false });
   });
 
-  socket.on("disconnect", () => {
+  socket.on("disconnect", async () => {
     let userId = null;
+
     for (let [key, value] of onlineUsers.entries()) {
-        if (value === socket.id) {
-            userId = key;
-            onlineUsers.delete(key); // Remove user from the online users map
-            break;
-        }
+      if (value === socket.id) {
+        userId = key;
+        onlineUsers.delete(key); // Remove user from the online users map
+        break;
+      }
     }
 
     if (userId) {
-        emitUserStatus(userId, "offline"); // Emit to clients that the user is offline
+      emitUserStatus(userId, "offline");
+
+      // Set the user status in the database
+      await User.findByIdAndUpdate(userId, { online: false });
     }
+  });
 });
 
-});
-
-server.listen(PORT, () => console.log(`Server running on http://localhost:${PORT}`));
+server.listen(PORT, () =>
+  console.log(`Server running on http://localhost:${PORT}`)
+);
