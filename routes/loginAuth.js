@@ -21,10 +21,9 @@ const loginAuth = async (req, res) => {
 
     const isProfileComplete = user.name && user.address && user.profilePhoto;
 
-    // Emit the user status to notify others that the user is online
-    user.online = true;  // Set the user to be online
-    await user.save();  // Save the user status to the DB
-    emitUserStatus(user._id, "online"); // Notify all connected clients about the user's status
+    user.online = true;
+    await user.save();
+    emitUserStatus(user._id, "online");
 
     res.json({ message: "Login successful", token, isProfileComplete });
   } catch (err) {

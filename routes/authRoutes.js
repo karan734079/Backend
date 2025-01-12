@@ -31,7 +31,7 @@ router.post("/login", loginAuth);
 
 // Assuming you have an Express app
 router.post('/logout', authenticate, async (req, res) => {
-  const userId = req.user._id; // Now req.user will have the authenticated user's data.
+  const userId = req.user._id;
   try {
     // Update user status to offline in the database
     await User.findByIdAndUpdate(userId, { online: false });

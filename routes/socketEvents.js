@@ -7,7 +7,7 @@ const setSocketIoInstance = (socketIoInstance) => {
 
 const emitUserStatus = (userId, status) => {
   if (io) {
-      io.emit("user-status", { userId, status }); // Emit status change (online/offline)
+      io.emit("user-status", { userId, status });
   } else {
       console.log("Socket.IO instance not available");
   }

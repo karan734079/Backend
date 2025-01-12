@@ -17,8 +17,14 @@ dotenv.config();
 
 const app = express();
 const server = http.createServer(app);
-const io = new Server(server);
+const io = new Server(server, {
+  cors: {
+    origin: "http://localhost:3000",
+    methods: ["GET", "POST"],
+  },
+});
 
+// Initialize socket.io instance
 setSocketIoInstance(io);
 
 const PORT = 5000;
@@ -33,48 +39,157 @@ mongoose
     useUnifiedTopology: true,
   })
   .then(() => console.log("MongoDB connected"))
-  .catch((err) => console.log("Error connecting to MongoDB", err));
+  .catch((err) => console.log("Error connecting to MongoDB:", err));
 
 app.use("/api/auth", authRoutes);
 
-const onlineUsers = new Map();
+const onlineUsers = new Map(); // Map to track online users and their socket IDs
+
+io.use((socket, next) => {
+  console.log("Socket Event Names:", socket.eventNames());
+  next();
+});
+
+const getRecipientSocketId = (userId) => {
+  const recipientSockets = onlineUsers.get(userId);
+  if (recipientSockets && recipientSockets.length > 0) {
+    return recipientSockets[0]; // Return the first available socket
+  }
+  return null; // User is offline
+};
 
 io.on("connection", (socket) => {
-  // console.log(`User connected: ${socket.id}`);
+  console.log(`User connected: ${socket.id}`);
 
+  // Handle user login and store their socket ID
   socket.on("user-login", async (userId) => {
-    onlineUsers.set(userId, socket.id);
-    emitUserStatus(userId, "online");
+    try {
+      console.log(`User logged in: ${userId}, socket.id: ${socket.id}`);
+      if (!onlineUsers.has(userId)) {
+        onlineUsers.set(userId, []);
+      }
+      onlineUsers.get(userId).push(socket.id);
 
-    // Set the user status in the database
-    await User.findByIdAndUpdate(userId, { online: true });
+      emitUserStatus(userId, "online");
+      console.log("User is now online:", {
+        userId,
+        socketIds: onlineUsers.get(userId),
+      });
+
+      // Update the user's online status in the database
+      await User.findByIdAndUpdate(userId, { online: true }).catch(
+        console.error
+      );
+    } catch (err) {
+      console.error("Error during user-login:", err);
+    }
   });
 
+  // Handle user logout and remove their socket ID
   socket.on("user-logout", async (userId) => {
-    onlineUsers.delete(userId);
-    emitUserStatus(userId, "offline");
+    try {
+      console.log(`User logged out: ${userId}`);
+      onlineUsers.delete(userId);
+      emitUserStatus(userId, "offline");
 
-    // Set the user status in the database
-    await User.findByIdAndUpdate(userId, { online: false });
+      // Update the user's online status in the database
+      await User.findByIdAndUpdate(userId, { online: false }).catch(
+        console.error
+      );
+    } catch (err) {
+      console.error("Error during user-logout:", err);
+    }
   });
 
+  // Handle socket disconnection
   socket.on("disconnect", async () => {
     let userId = null;
 
+    // Find the user associated with this socket ID
     for (let [key, value] of onlineUsers.entries()) {
-      if (value === socket.id) {
+      const index = value.indexOf(socket.id);
+      if (index !== -1) {
+        value.splice(index, 1); // Remove the socket ID
+        if (value.length === 0) {
+          onlineUsers.delete(key); // Remove user if no sockets remain
+        }
         userId = key;
-        onlineUsers.delete(key); // Remove user from the online users map
         break;
       }
     }
 
     if (userId) {
+      console.log(`User disconnected: ${userId}`);
       emitUserStatus(userId, "offline");
 
-      // Set the user status in the database
-      await User.findByIdAndUpdate(userId, { online: false });
+      // Update the user's online status in the database
+      await User.findByIdAndUpdate(userId, { online: false }).catch(
+        console.error
+      );
     }
+  });
+
+  // Handle starting a call
+  socket.on("start-call", ({ from, to, callerName }) => {
+    const recipientSocketId = getRecipientSocketId(to);
+    if (recipientSocketId) {
+      console.log(
+        `Emitting 'incoming-call' to recipient (${to}) at socket ID: ${recipientSocketId}`
+      );
+      io.to(recipientSocketId).emit("incoming-call", {
+        from,
+        callerSocketId: socket.id,
+        callerName,
+      });
+    } else {
+      console.error(`Recipient (${to}) is offline or not connected.`);
+      socket.emit("call-status", { status: "User is offline." });
+    }
+  });
+
+  socket.on("accept-call", ({ callerSocketId }) => {
+    if (callerSocketId) {
+      console.log(
+        `Call accepted by recipient. Notifying caller (${callerSocketId})...`
+      );
+      io.to(callerSocketId).emit("call-accepted");
+    }
+  });
+
+  socket.on("decline-call", ({ callerSocketId }) => {
+    if (callerSocketId) {
+      console.log(
+        `Call declined by recipient. Notifying caller (${callerSocketId})...`
+      );
+      io.to(callerSocketId).emit("call-declined");
+    }
+  });
+
+  // Handle ICE candidate sharing
+  socket.on("ice-candidate", ({ candidate, to }) => {
+    const recipientSockets = onlineUsers.get(to) || [];
+    recipientSockets.forEach((recipientSocketId) => {
+      console.log(`Sending ICE candidate to: ${recipientSocketId}`);
+      io.to(recipientSocketId).emit("ice-candidate", { candidate });
+    });
+  });
+
+  // Handle WebRTC offer
+  socket.on("offer", ({ sdp, to }) => {
+    const recipientSockets = onlineUsers.get(to) || [];
+    recipientSockets.forEach((recipientSocketId) => {
+      console.log(`Sending WebRTC offer to: ${recipientSocketId}`);
+      io.to(recipientSocketId).emit("offer", { sdp });
+    });
+  });
+
+  // Handle WebRTC answer
+  socket.on("answer", ({ sdp, to }) => {
+    const recipientSockets = onlineUsers.get(to) || [];
+    recipientSockets.forEach((recipientSocketId) => {
+      console.log(`Sending WebRTC answer to: ${recipientSocketId}`);
+      io.to(recipientSocketId).emit("answer", { sdp });
+    });
   });
 });
 
