@@ -12,6 +12,7 @@ const {
   setSocketIoInstance,
   emitUserStatus,
 } = require("./routes/socketEvents");
+const { log } = require("console");
 
 dotenv.config();
 
@@ -46,17 +47,16 @@ app.use("/api/auth", authRoutes);
 const onlineUsers = new Map(); // Map to track online users and their socket IDs
 
 io.use((socket, next) => {
-  console.log("Socket Event Names:", socket.eventNames());
+  console.log("Socket Event Names:", socket.id);
   next();
 });
 
-const getRecipientSocketId = (userId) => {
+// Function to get the recipient's socket ID(s) from online users
+const getRecipientSocketIds = (userId) => {
   const recipientSockets = onlineUsers.get(userId);
-  if (recipientSockets && recipientSockets.length > 0) {
-    return recipientSockets[0]; // Return the first available socket
-  }
-  return null; // User is offline
+  return recipientSockets && recipientSockets.length > 0 ? recipientSockets : null;
 };
+
 
 io.on("connection", (socket) => {
   console.log(`User connected: ${socket.id}`);
@@ -101,47 +101,27 @@ io.on("connection", (socket) => {
     }
   });
 
-  // Handle socket disconnection
-  socket.on("disconnect", async () => {
-    let userId = null;
+  socket.on("start-call", ({ from, to, callerName , callerSocketId}) => {
+    // Fetch the recipient's socket ID
+    const recipientSocketId = getRecipientSocketIds(to);
+    console.log("recipent socket id = ",recipientSocketId)
 
-    // Find the user associated with this socket ID
-    for (let [key, value] of onlineUsers.entries()) {
-      const index = value.indexOf(socket.id);
-      if (index !== -1) {
-        value.splice(index, 1); // Remove the socket ID
-        if (value.length === 0) {
-          onlineUsers.delete(key); // Remove user if no sockets remain
-        }
-        userId = key;
-        break;
-      }
-    }
-
-    if (userId) {
-      console.log(`User disconnected: ${userId}`);
-      emitUserStatus(userId, "offline");
-
-      // Update the user's online status in the database
-      await User.findByIdAndUpdate(userId, { online: false }).catch(
-        console.error
-      );
-    }
-  });
-
-  // Handle starting a call
-  socket.on("start-call", ({ from, to, callerName }) => {
-    const recipientSocketId = getRecipientSocketId(to);
     if (recipientSocketId) {
+      // Recipient is online, emit 'incoming-call'
       console.log(
         `Emitting 'incoming-call' to recipient (${to}) at socket ID: ${recipientSocketId}`
       );
-      io.to(recipientSocketId).emit("incoming-call", {
+      io.to(recipientSocketId.pop()).emit("incoming-call", {
         from,
-        callerSocketId: socket.id,
+        callerSocketId,
         callerName,
-      });
+      })
+
+      console.log(from);
+      console.log(callerSocketId);
+      console.log(callerName);
     } else {
+      // Recipient is offline
       console.error(`Recipient (${to}) is offline or not connected.`);
       socket.emit("call-status", { status: "User is offline." });
     }
@@ -190,6 +170,34 @@ io.on("connection", (socket) => {
       console.log(`Sending WebRTC answer to: ${recipientSocketId}`);
       io.to(recipientSocketId).emit("answer", { sdp });
     });
+  });
+
+  // Handle socket disconnection
+  socket.on("disconnect", async () => {
+    let userId = null;
+
+    // Find the user associated with this socket ID
+    for (let [key, value] of onlineUsers.entries()) {
+      const index = value.indexOf(socket.id);
+      if (index !== -1) {
+        value.splice(index, 1); // Remove the socket ID
+        if (value.length === 0) {
+          onlineUsers.delete(key); // Remove user if no sockets remain
+        }
+        userId = key;
+        break;
+      }
+    }
+
+    if (userId) {
+      console.log(`User disconnected: ${userId}`);
+      emitUserStatus(userId, "offline");
+
+      // Update the user's online status in the database
+      await User.findByIdAndUpdate(userId, { online: false }).catch(
+        console.error
+      );
+    }
   });
 });
 
