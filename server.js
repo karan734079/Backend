@@ -12,7 +12,6 @@ const {
   setSocketIoInstance,
   emitUserStatus,
 } = require("./routes/socketEvents");
-const { log } = require("console");
 
 dotenv.config();
 
@@ -39,7 +38,7 @@ mongoose
     useNewUrlParser: true,
     useUnifiedTopology: true,
   })
-  .then(() => console.log("MongoDB connected"))
+  .then(() => ("MongoDB connected"))
   .catch((err) => console.log("Error connecting to MongoDB:", err));
 
 app.use("/api/auth", authRoutes);
@@ -47,7 +46,6 @@ app.use("/api/auth", authRoutes);
 const onlineUsers = new Map(); // Map to track online users and their socket IDs
 
 io.use((socket, next) => {
-  console.log("Socket Event Names:", socket.id);
   next();
 });
 
@@ -71,10 +69,6 @@ io.on("connection", (socket) => {
       onlineUsers.get(userId).push(socket.id);
 
       emitUserStatus(userId, "online");
-      console.log("User is now online:", {
-        userId,
-        socketIds: onlineUsers.get(userId),
-      });
 
       // Update the user's online status in the database
       await User.findByIdAndUpdate(userId, { online: true }).catch(
@@ -104,7 +98,6 @@ io.on("connection", (socket) => {
   socket.on("start-call", ({ from, to, callerName , callerSocketId}) => {
     // Fetch the recipient's socket ID
     const recipientSocketId = getRecipientSocketIds(to);
-    console.log("recipent socket id = ",recipientSocketId)
 
     if (recipientSocketId) {
       // Recipient is online, emit 'incoming-call'
@@ -116,10 +109,6 @@ io.on("connection", (socket) => {
         callerSocketId,
         callerName,
       })
-
-      console.log(from);
-      console.log(callerSocketId);
-      console.log(callerName);
     } else {
       // Recipient is offline
       console.error(`Recipient (${to}) is offline or not connected.`);
@@ -129,18 +118,14 @@ io.on("connection", (socket) => {
 
   socket.on("accept-call", ({ callerSocketId }) => {
     if (callerSocketId) {
-      console.log(
-        `Call accepted by recipient. Notifying caller (${callerSocketId})...`
-      );
+      
       io.to(callerSocketId).emit("call-accepted");
     }
   });
 
   socket.on("decline-call", ({ callerSocketId }) => {
     if (callerSocketId) {
-      console.log(
-        `Call declined by recipient. Notifying caller (${callerSocketId})...`
-      );
+      
       io.to(callerSocketId).emit("call-declined");
     }
   });
@@ -149,7 +134,6 @@ io.on("connection", (socket) => {
   socket.on("ice-candidate", ({ candidate, to }) => {
     const recipientSockets = onlineUsers.get(to) || [];
     recipientSockets.forEach((recipientSocketId) => {
-      console.log(`Sending ICE candidate to: ${recipientSocketId}`);
       io.to(recipientSocketId).emit("ice-candidate", { candidate });
     });
   });
@@ -158,7 +142,6 @@ io.on("connection", (socket) => {
   socket.on("offer", ({ sdp, to }) => {
     const recipientSockets = onlineUsers.get(to) || [];
     recipientSockets.forEach((recipientSocketId) => {
-      console.log(`Sending WebRTC offer to: ${recipientSocketId}`);
       io.to(recipientSocketId).emit("offer", { sdp });
     });
   });
@@ -167,15 +150,21 @@ io.on("connection", (socket) => {
   socket.on("answer", ({ sdp, to }) => {
     const recipientSockets = onlineUsers.get(to) || [];
     recipientSockets.forEach((recipientSocketId) => {
-      console.log(`Sending WebRTC answer to: ${recipientSocketId}`);
       io.to(recipientSocketId).emit("answer", { sdp });
     });
   });
 
+  socket.on("end-call", ({ to }) => {
+    const recipientSockets = onlineUsers.get(to) || [];
+    recipientSockets.forEach((recipientSocketId) => {
+      io.to(recipientSocketId).emit("end-call");
+    });
+  });
+  
+
   // Handle socket disconnection
   socket.on("disconnect", async () => {
     let userId = null;
-
     // Find the user associated with this socket ID
     for (let [key, value] of onlineUsers.entries()) {
       const index = value.indexOf(socket.id);
@@ -201,6 +190,6 @@ io.on("connection", (socket) => {
   });
 });
 
-server.listen(PORT, () =>
+server.listen(PORT,() =>
   console.log(`Server running on http://localhost:${PORT}`)
 );

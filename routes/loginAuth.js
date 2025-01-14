@@ -3,7 +3,7 @@ const User = require("../models/user");
 const jwt = require("jsonwebtoken");
 const { emitUserStatus } = require("./socketEvents");
 
-const loginAuth = async (req, res) => {
+const loginAuth = async (req, res) => { 
   const { username, password } = req.body;
 
   try {
@@ -16,7 +16,7 @@ const loginAuth = async (req, res) => {
     }
 
     const token = jwt.sign({ id: user._id }, process.env.AUTH_SECRET_KEY, {
-      expiresIn: "1h",
+      expiresIn: "5h",
     });
 
     const isProfileComplete = user.name && user.address && user.profilePhoto;
