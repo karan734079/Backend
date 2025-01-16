@@ -95,7 +95,7 @@ io.on("connection", (socket) => {
     }
   });
 
-  socket.on("start-call", ({ from, to, callerName , callerSocketId}) => {
+  socket.on("start-call", ({ from, to, callerName , callerSocketId,callType}) => {
     // Fetch the recipient's socket ID
     const recipientSocketId = getRecipientSocketIds(to);
 
@@ -108,6 +108,7 @@ io.on("connection", (socket) => {
         from,
         callerSocketId,
         callerName,
+        callType
       })
     } else {
       // Recipient is offline
@@ -116,10 +117,10 @@ io.on("connection", (socket) => {
     }
   });
 
-  socket.on("accept-call", ({ callerSocketId }) => {
+  socket.on("accept-call", ({ callerSocketId, callType }) => {
     if (callerSocketId) {
-      
-      io.to(callerSocketId).emit("call-accepted");
+      console.log(`Call accepted, type: ${callType}`);
+      io.to(callerSocketId).emit("call-accepted", { callType });
     }
   });
 
