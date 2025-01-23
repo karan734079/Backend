@@ -19,7 +19,7 @@ const getPostLikes = require("./getPostLikes");
 const postDelete = require("./postDelete");
 const getUsersFromSearch = require("./getUsersFromSearch");
 const User = require("../models/user");
-const {emitUserStatus} = require("./socketEvents")
+const { emitUserStatus } = require("./socketEvents");
 
 const router = express.Router();
 
@@ -30,7 +30,7 @@ router.post("/sign-up", signUpAuth);
 router.post("/login", loginAuth);
 
 // Assuming you have an Express app
-router.post('/logout', authenticate, async (req, res) => {
+router.post("/logout", authenticate, async (req, res) => {
   const userId = req.user._id;
   try {
     // Update user status to offline in the database
@@ -39,10 +39,10 @@ router.post('/logout', authenticate, async (req, res) => {
     // Emit to all clients that this user is offline
     emitUserStatus(userId, "offline");
 
-    res.status(200).send('User status updated to offline');
+    res.status(200).send("User status updated to offline");
   } catch (err) {
-    console.error('Error updating status:', err);
-    res.status(500).send('Server error');
+    console.error("Error updating status:", err);
+    res.status(500).send("Server error");
   }
 });
 
@@ -79,13 +79,59 @@ router.delete("/posts/:postId", authenticate, postDelete);
 router.get("/reels", authenticate, getReels);
 
 // get users from search
-router.get("/users/search", authenticate,getUsersFromSearch);
+router.get("/users/search", authenticate, getUsersFromSearch);
 
 // get followers
 router.get("/followers", authenticate, getFollowers);
 
+router.get("/followers/:userId", authenticate, async (req, res) => {
+  try {
+    const { userId } = req.params;
+    if (!userId) {
+      return res.status(400).json({ error: "User ID is required" });
+    }
+
+    // Find the user and populate the followers array
+    const user = await User.findById(userId).populate(
+      "followers",
+      "username profilePhoto"
+    );
+    if (!user) {
+      return res.status(404).json({ error: "User not found" });
+    }
+
+    res.json(user.followers);
+  } catch (error) {
+    console.error("Error fetching followers:", error);
+    res.status(500).json({ error: "Server error" });
+  }
+});
+
 // get following
 router.get("/following", authenticate, getFollowing);
+
+router.get("/following/:userId", authenticate, async (req, res) => {
+  try {
+    const { userId } = req.params;
+    if (!userId) {
+      return res.status(400).json({ error: "User ID is required" });
+    }
+
+    // Find the user and populate the followers array
+    const user = await User.findById(userId).populate(
+      "following",
+      "username profilePhoto"
+    );
+    if (!user) {
+      return res.status(404).json({ error: "User not found" });
+    }
+
+    res.json(user.following);
+  } catch (error) {
+    console.error("Error fetching followers:", error);
+    res.status(500).json({ error: "Server error" });
+  }
+});
 
 router.get("/notifications", authenticate, notificationGet);
 
